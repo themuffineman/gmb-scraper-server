@@ -2,8 +2,7 @@ const puppeteer = require('puppeteer');
 const express = require('express');
 const WebSocket = require('ws');
 const cors = require('cors');
-const fetch = require('node-fetch');
-require('dotenv').config();
+
 
 const app = express();
 const port = 8080;
@@ -12,7 +11,6 @@ app.use(cors({
 }))
 app.use(express.urlencoded({ extended: true }));
 app.use(express.json());
-
 
 let browser;
 let server;
@@ -153,7 +151,7 @@ app.get('/scrape', async(req, res) => {
                                 tempEmails.push(...secondaryCrawledEmails);
                             }
                             
-                            broadcast(JSON.stringify({ name: businessName, tempName: businessName, url, emails: [...new Set(tempEmails)]}), 'lead');
+                            broadcast(JSON.stringify({ name: businessName, url, emails: [...new Set(tempEmails)]}), 'lead');
         
                         } catch (error) {
                             console.error(`Error navigating to ${url}: ${error}`);
@@ -232,7 +230,7 @@ app.get('/scrape', async(req, res) => {
                                 tempEmails.push(...secondaryCrawledEmails);
                             }
                             
-                            broadcast(JSON.stringify({ name: businessName, tempName: businessName, url, emails: [...new Set(tempEmails)]}), 'lead');    
+                            broadcast(JSON.stringify({ name: businessName, url, emails: [...new Set(tempEmails)]}), 'lead');    
                         } catch (error) {
                             console.error(`Error navigating to ${url}: ${error}`);
                         } finally {
