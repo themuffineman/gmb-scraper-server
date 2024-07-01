@@ -59,7 +59,7 @@ function broadcast(data, type) {
 // Keep-alive functionality
 keepAliveInterval = setInterval(async () => {
     try {
-        await fetch(`https://gmb-scraper-server.com/keep-alive`);
+        await fetch(`https://gmb-scraper-server.onrender.com/keep-alive`);
         console.log('Keep-alive request sent');
     } catch (error) {
         console.error('Error sending keep-alive request:', error);
