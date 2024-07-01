@@ -13,35 +13,65 @@ app.use(cors({
 app.use(express.urlencoded({ extended: true }));
 app.use(express.json());
 
-const server = app.listen(port, () => {
+
+let browser;
+let server;
+let wss;
+let keepAliveInterval;
+
+// WebSocket server setup
+server = app.listen(port, () => {
     console.log(`Server is running on port ${port}`);
+    wss = new WebSocket.Server({ server });
+
+    wss.on('connection', ws => {
+        console.log('Client connected to WebSocket server');
+
+        ws.on('close', () => {
+            console.log('Client disconnected from WebSocket server');
+        });
+    });
 });
-const wss = new WebSocket.Server({ server });
+
+// Function to launch Puppeteer
+async function launchPuppeteer() {
+    try {
+        browser = await puppeteer.launch();
+        console.log('Puppeteer Up and Running');
+    } catch (error) {
+        console.error('Error launching Puppeteer:', error);
+        throw error; // Re-throw the error to handle it elsewhere if needed
+    }
+}
+
+// Launch Puppeteer when server starts
+launchPuppeteer().catch(error => {
+    console.error('Error launching Puppeteer:', error);
+});
+
+// Broadcast function for WebSocket
 function broadcast(data, type) {
     wss.clients.forEach(client => {
         if (client.readyState === WebSocket.OPEN) {
-            client.send({type, data});
+            client.send(JSON.stringify({ type, data }));
         }
     });
 }
 
-let browser;
-puppeteer.launch()
-    .then(chrome => {
-        browser = chrome;
-        console.log('Puppeteer Up and Running');
-    })
-    .catch(error => {
-        console.error('Error launching Puppeteer:', error);
+// Keep-alive functionality
+keepAliveInterval = setInterval(async () => {
+    try {
+        await fetch(`https://gmb-scraper-server.com/keep-alive`);
+        console.log('Keep-alive request sent');
+    } catch (error) {
+        console.error('Error sending keep-alive request:', error);
+    }
+}, 30000);
+
+// Routes
+app.get('/keep-alive', (_, res) => {
+    res.send('hello world');
 });
-
-app.get('/keep-alive', (_,res)=>{ 
-    res.send('hello world')
-})
-
-setInterval(async()=>{
-    fetch(`https://papa-johns.onrender.com/keep-alive`)
-}, 30000)
     
 app.get('/scrape', async(req, res) => {
 
@@ -254,31 +284,67 @@ app.get('/scrape', async(req, res) => {
     }
 });
 
+app.get('/cancel-process', (_, res) => {
+    console.log('Received cancel-process request. Cleaning up...');
 
-server.on('close', () => {
-    wss.clients.forEach(client => {
-        client.terminate();
+    // Clear keep-alive interval
+    clearInterval(keepAliveInterval);
+
+    // Close server gracefully
+    server.close(() => {
+        console.log('Server closed');
+        process.exit(0); // Exit the process gracefully
     });
-    console.log('WebSocket connections closed.');
+
+    // Close WebSocket server
+    if (wss) {
+        wss.close(() => {
+            console.log('WebSocket server closed');
+        });
+    } else {
+        console.log('No WebSocket server to close');
+    }
+
+    res.send('Process cancellation initiated');
 });
 
-process.on('exit', () => {
-    // Close the WebSocket connection
-    if (ws.readyState === WebSocket.OPEN) {
+// Handle server close event
+server.on('close', () => {
+    console.log('Server closed. Cleaning up WebSocket connections...');
+    if (wss) {
         wss.clients.forEach(client => {
-            client.terminate();
+            if (client.readyState === WebSocket.OPEN) {
+                client.terminate();
+            }
         });
-        wss.close();
     }
 });
 
-app.get('/keep-alive', (_,res)=>{ 
-    res.send('hello world')
-})
+['SIGINT', 'SIGTERM'].forEach(signal => {
+    process.on(signal, () => {
+        console.log(`Received ${signal}. Cleaning up...`);
 
-setInterval(async()=>{
-    fetch(`https://gmb-scraper-server.onrender.com/keep-alive`)
-}, 30000)
+        // Clear keep-alive interval
+        clearInterval(keepAliveInterval);
+
+        // Close server gracefully
+        server.close(() => {
+            console.log('Server closed');
+            process.exit(0); // Exit the process gracefully
+        });
+
+        // Close WebSocket server
+        if (wss) {
+            wss.close(() => {
+                console.log('WebSocket server closed');
+            });
+        } else {
+            console.log('No WebSocket server to close');
+        }
+    });
+});
+
+
 
 
 
