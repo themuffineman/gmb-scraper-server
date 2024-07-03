@@ -22,18 +22,18 @@ let keepAliveInterval;
 const clients = new Map()
 server = app.listen(port, () => {
     console.log(`Server is running on port ${port}`);
-    wss = new WebSocket.Server({ server });
+});
 
-    wss.on('connection', ws => {
-        const id = uuidv4(); 
-        clients.set(id, ws);
-        ws.id = id; 
-        ws.send(JSON.stringify({ type: 'id', data: id }));
-        console.log('Client:', id, ' ,connected to WebSocket server');
-        ws.on('close', () => {
-            clients.delete(id)
-            console.log('Client:', id, ' ,disconnected from WebSocket server');
-        });
+wss = new WebSocket.Server({ server });
+wss.on('connection', ws => {
+    const id = uuidv4(); 
+    clients.set(id, ws);
+    ws.id = id; 
+    ws.send(JSON.stringify({ type: 'id', data: id }));
+    console.log('Client:', id, ' ,connected to WebSocket server');
+    ws.on('close', () => {
+        clients.delete(id)
+        console.log('Client:', id, ' ,disconnected from WebSocket server');
     });
 });
 
@@ -74,19 +74,19 @@ function closeClientConnection(id) {
 }
 
 // Keep-alive functionality
-keepAliveInterval = setInterval(async () => {
-    try {
-        await fetch(`https://gmb-scraper-server.onrender.com/keep-alive`);
-        console.log('Keep-alive request sent');
-    } catch (error) {
-        console.error('Error sending keep-alive request:', error);
-    }
-}, 30000);
+// keepAliveInterval = setInterval(async () => {
+//     try {
+//         await fetch(`https://gmb-scraper-server.onrender.com/keep-alive`);
+//         console.log('Keep-alive request sent');
+//     } catch (error) {
+//         console.error('Error sending keep-alive request:', error);
+//     }
+// }, 30000);
 
 // Routes
-app.get('/keep-alive', (_, res) => {
-    res.send('hello world');
-});
+// app.get('/keep-alive', (_, res) => {
+//     res.send('hello world');
+// });
     
 app.get('/scrape', async(req, res) => {
 
@@ -306,7 +306,7 @@ app.get('/cancel-process', (req, res) => {
     // Clear keep-alive interval
     clearInterval(keepAliveInterval);
 
-    closeClientConnection(client)
+    closeClientConnection(clientId)
     res.send('Process cancellation initiated');
 });
 
