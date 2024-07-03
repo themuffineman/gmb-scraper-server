@@ -2,6 +2,7 @@ const puppeteer = require('puppeteer');
 const express = require('express');
 const WebSocket = require('ws');
 const cors = require('cors');
+const { v4: uuidv4 } = require('uuid');
 
 
 const app = express();
@@ -18,15 +19,20 @@ let wss;
 let keepAliveInterval;
 
 // WebSocket server setup
+const clients = new Map()
 server = app.listen(port, () => {
     console.log(`Server is running on port ${port}`);
     wss = new WebSocket.Server({ server });
 
     wss.on('connection', ws => {
-        console.log('Client connected to WebSocket server');
-
+        const id = uuidv4(); 
+        clients.set(id, ws);
+        ws.id = id; 
+        ws.send(JSON.stringify({ type: 'id', data: id }));
+        console.log('Client:', id, ' ,connected to WebSocket server');
         ws.on('close', () => {
-            console.log('Client disconnected from WebSocket server');
+            clients.delete(id)
+            console.log('Client:', id, ' ,disconnected from WebSocket server');
         });
     });
 });
@@ -48,12 +54,23 @@ launchPuppeteer().catch(error => {
 });
 
 // Broadcast function for WebSocket
-function broadcast(data, type) {
-    wss.clients.forEach(client => {
-        if (client.readyState === WebSocket.OPEN) {
-            client.send(JSON.stringify({ type, data }));
-        }
-    });
+function broadcast(id, data, type) {
+    const client = clients.get(id);
+    if (client && client.readyState === WebSocket.OPEN) {
+        client.send(JSON.stringify({ type, data }))
+    } else {
+        console.error(`Client with ID ${id} not found or not open`);
+    }
+}
+function closeClientConnection(id) {
+    const client = clients.get(id);
+    if (client) {
+        client.close(); // Close the WebSocket connection
+        clients.delete(id); // Remove client from the map
+        console.log(`Client with ID ${id} has been disconnected`);
+    } else {
+        console.error(`Client with ID ${id} not found`);
+    }
 }
 
 // Keep-alive functionality
@@ -73,11 +90,11 @@ app.get('/keep-alive', (_, res) => {
     
 app.get('/scrape', async(req, res) => {
 
+    const {service, location, pageNumber, clientId} = req.query
     try {
-        const {service, location, pageNumber} = req.query
 
         if (service && location && pageNumber){
-            console.log('The Scraping Queries:', service,',', location, ',', pageNumber)
+            console.log('The Scraping Queries:', service,',', location, ',', pageNumber, ' id:', clientId)
             const intPageNumber = parseInt(pageNumber)
             
             const page = await browser.newPage();
@@ -88,7 +105,7 @@ app.get('/scrape', async(req, res) => {
             if(intPageNumber === 0){
                 await page.goto(`https://www.google.com/localservices/prolist?g2lbs=AIQllVxEpXuuCPFrOHRAavT6nJMeIXUuM9D7r7-IlczaiEuKdgYVA09lqC7MIhZ3mUJ_MfwMM30K5vDmEB9UFLvwoZMUuqe_RIT2RmrDlIhrFndV8WuAgW-ioANkhbKSz__jtHfxKrJZLfFak9ca1Vbqi4HEnaKw7Q%3D%3D&hl=en-US&gl=&cs=1&ssta=1&q=${service}+in+${location}&oq=${service}+in+${location}&scp=Cg5nY2lkOmFyY2hpdGVjdBJMEhIJSTKCCzZwQIYRPN4IGI8c6xYaEgkLNjLkhLXqVBFCt95Dkrk7HCIKVGV4YXMsIFVTQSoUDV1uZg8VcypvwB3BkMEVJTvOQ8gwABoKYXJjaGl0ZWN0cyITYXJjaGl0ZWN0cyBpbiB0ZXhhcyoJQXJjaGl0ZWN0&slp=MgA6HENoTUkxWXZoamNfVmhBTVZZSUJRQmgxMkpBRTRSAggCYACSAZsCCgsvZy8xdGg2ZjZ4ZwoNL2cvMTFoY3c1ZDltZAoLL2cvMXd5YzRybWQKDC9nLzEycWg5dzhmZAoNL2cvMTFnNm5sMGxmNQoLL2cvMXRkY2dzdjQKCy9nLzF0aGwxODBzCgsvZy8xdGc3c2RmNwoLL2cvMXRkNGR6cTEKCy9nLzF0ZnNuZDRfCg0vZy8xMWI3bHBtOGIxCgsvZy8xdHp6dng1bAoLL2cvMXRrNHJsMTEKCy9nLzF0a3ZiNGpzCg0vZy8xMWJ4OGNteHM4Cg0vZy8xMWNuMF93MTkxCgsvZy8xdG15NWdzaAoLL2cvMXYzaF9jM3EKCy9nLzF2eWsyeHpnCgsvZy8xdGZtY24xcRIEEgIIARIECgIIAZoBBgoCFxkQAA%3D%3D&src=2&serdesk=1&sa=X&ved=2ahUKEwiyo9uNz9WEAxUMQkEAHZWwBcEQjGp6BAgfEAE`);
                 console.info('Navigated To GMB Website')
-                broadcast('Setting  up scraper', 'status')
+                broadcast(clientId, 'Setting  up scraper', 'status')
                 const currentUrl = page.url();
 
                 //Wait for input element and search
@@ -130,7 +147,7 @@ app.get('/scrape', async(req, res) => {
                         try {
                             await newPage.goto(url);
                             console.info(`Navigated to ${url}`);
-                            broadcast(`Now scraping ${url}`, 'status');
+                            broadcast(clientId, `Now scraping ${url}`, 'status');
     
         
                             let tempEmails = []
@@ -151,7 +168,7 @@ app.get('/scrape', async(req, res) => {
                                 tempEmails.push(...secondaryCrawledEmails);
                             }
                             
-                            broadcast(JSON.stringify({ name: businessName, url, emails: [...new Set(tempEmails)]}), 'lead');
+                            broadcast(clientId, JSON.stringify({ name: businessName, url, emails: [...new Set(tempEmails)]}), 'lead');
         
                         } catch (error) {
                             console.error(`Error navigating to ${url}: ${error}`);
@@ -167,7 +184,7 @@ app.get('/scrape', async(req, res) => {
     
                 await page.goto(`https://www.google.com/localservices/prolist?g2lbs=AIQllVxEpXuuCPFrOHRAavT6nJMeIXUuM9D7r7-IlczaiEuKdgYVA09lqC7MIhZ3mUJ_MfwMM30K5vDmEB9UFLvwoZMUuqe_RIT2RmrDlIhrFndV8WuAgW-ioANkhbKSz__jtHfxKrJZLfFak9ca1Vbqi4HEnaKw7Q%3D%3D&hl=en-US&gl=&cs=1&ssta=1&q=${service}+in+${location}&oq=${service}+in+${location}&scp=Cg5nY2lkOmFyY2hpdGVjdBJMEhIJSTKCCzZwQIYRPN4IGI8c6xYaEgkLNjLkhLXqVBFCt95Dkrk7HCIKVGV4YXMsIFVTQSoUDV1uZg8VcypvwB3BkMEVJTvOQ8gwABoKYXJjaGl0ZWN0cyITYXJjaGl0ZWN0cyBpbiB0ZXhhcyoJQXJjaGl0ZWN0&slp=MgA6HENoTUkxWXZoamNfVmhBTVZZSUJRQmgxMkpBRTRSAggCYACSAZsCCgsvZy8xdGg2ZjZ4ZwoNL2cvMTFoY3c1ZDltZAoLL2cvMXd5YzRybWQKDC9nLzEycWg5dzhmZAoNL2cvMTFnNm5sMGxmNQoLL2cvMXRkY2dzdjQKCy9nLzF0aGwxODBzCgsvZy8xdGc3c2RmNwoLL2cvMXRkNGR6cTEKCy9nLzF0ZnNuZDRfCg0vZy8xMWI3bHBtOGIxCgsvZy8xdHp6dng1bAoLL2cvMXRrNHJsMTEKCy9nLzF0a3ZiNGpzCg0vZy8xMWJ4OGNteHM4Cg0vZy8xMWNuMF93MTkxCgsvZy8xdG15NWdzaAoLL2cvMXYzaF9jM3EKCy9nLzF2eWsyeHpnCgsvZy8xdGZtY24xcRIEEgIIARIECgIIAZoBBgoCFxkQAA%3D%3D&src=2&serdesk=1&sa=X&ved=2ahUKEwiyo9uNz9WEAxUMQkEAHZWwBcEQjGp6BAgfEAE`);
                 console.info(`Google GMB page ${intPageNumber} navigated`);
-                broadcast(`Setting up scraper`, 'status');
+                broadcast(clientId, `Setting up scraper`, 'status');
                 const currentUrl = page.url();
 
                 
@@ -209,7 +226,7 @@ app.get('/scrape', async(req, res) => {
                         try {
                             await newPage.goto(url);
                             console.info(`Navigated to ${url}`);
-                            broadcast(`Scraping: ${url}`, 'status');
+                            broadcast(clientId, `Scraping: ${url}`, 'status');
     
     
                             let tempEmails = []
@@ -230,7 +247,7 @@ app.get('/scrape', async(req, res) => {
                                 tempEmails.push(...secondaryCrawledEmails);
                             }
                             
-                            broadcast(JSON.stringify({ name: businessName, url, emails: [...new Set(tempEmails)]}), 'lead');    
+                            broadcast(clientId, JSON.stringify({ name: businessName, url, emails: [...new Set(tempEmails)]}), 'lead');    
                         } catch (error) {
                             console.error(`Error navigating to ${url}: ${error}`);
                         } finally {
@@ -240,14 +257,14 @@ app.get('/scrape', async(req, res) => {
                 } 
                 res.status(200).send('Scraping complete');
                 console.log('Scraping Complete')
-                broadcast(`Finished Scraping`, 'status')
+                broadcast(clientId, `Finished Scraping`, 'status')
             }
             
         }
         
     }catch(error) { 
         console.error('Error:', error);
-        broadcast('Error occurred: ' + error.message, 'status');
+        broadcast(clientId, 'Error occurred: ' + error.message, 'status');
         res.status(500).send('Internal Server Error');
     }finally{
         await browser.close();
@@ -282,65 +299,18 @@ app.get('/scrape', async(req, res) => {
     }
 });
 
-app.get('/cancel-process', (_, res) => {
+app.get('/cancel-process', (req, res) => {
+    const {clientId} = req.query
     console.log('Received cancel-process request. Cleaning up...');
 
     // Clear keep-alive interval
     clearInterval(keepAliveInterval);
 
-    // Close server gracefully
-    server.close(() => {
-        console.log('Server closed');
-        process.exit(0); // Exit the process gracefully
-    });
-
-    // Close WebSocket server
-    if (wss) {
-        wss.close(() => {
-            console.log('WebSocket server closed');
-        });
-    } else {
-        console.log('No WebSocket server to close');
-    }
-
+    closeClientConnection(client)
     res.send('Process cancellation initiated');
 });
 
-// Handle server close event
-server.on('close', () => {
-    console.log('Server closed. Cleaning up WebSocket connections...');
-    if (wss) {
-        wss.clients.forEach(client => {
-            if (client.readyState === WebSocket.OPEN) {
-                client.terminate();
-            }
-        });
-    }
-});
 
-['SIGINT', 'SIGTERM'].forEach(signal => {
-    process.on(signal, () => {
-        console.log(`Received ${signal}. Cleaning up...`);
-
-        // Clear keep-alive interval
-        clearInterval(keepAliveInterval);
-
-        // Close server gracefully
-        server.close(() => {
-            console.log('Server closed');
-            process.exit(0); // Exit the process gracefully
-        });
-
-        // Close WebSocket server
-        if (wss) {
-            wss.close(() => {
-                console.log('WebSocket server closed');
-            });
-        } else {
-            console.log('No WebSocket server to close');
-        }
-    });
-});
 
 
 
