@@ -16,7 +16,6 @@ app.use(express.json());
 let browser;
 let server;
 let wss;
-let keepAliveInterval;
 
 // WebSocket server setup
 const clients = new Map()
@@ -29,7 +28,7 @@ wss.on('connection', ws => {
     const id = uuidv4(); 
     clients.set(id, ws);
     ws.id = id; 
-    ws.send(JSON.stringify({ type: 'id', data: id }));
+    broadcast(id, id, 'id')
     console.log('Client:', id, ' ,connected to WebSocket server');
     ws.on('close', () => {
         clients.delete(id)
@@ -73,21 +72,8 @@ function closeClientConnection(id) {
     }
 }
 
-// Keep-alive functionality
-// keepAliveInterval = setInterval(async () => {
-//     try {
-//         await fetch(`https://gmb-scraper-server.onrender.com/keep-alive`);
-//         console.log('Keep-alive request sent');
-//     } catch (error) {
-//         console.error('Error sending keep-alive request:', error);
-//     }
-// }, 30000);
 
-// Routes
-// app.get('/keep-alive', (_, res) => {
-//     res.send('hello world');
-// });
-    
+// Routes 
 app.get('/scrape', async(req, res) => {
 
     const {service, location, pageNumber, clientId} = req.query
@@ -302,9 +288,6 @@ app.get('/scrape', async(req, res) => {
 app.get('/cancel-process', (req, res) => {
     const {clientId} = req.query
     console.log('Received cancel-process request. Cleaning up...');
-
-    // Clear keep-alive interval
-    clearInterval(keepAliveInterval);
 
     closeClientConnection(clientId)
     res.send('Process cancellation initiated');
