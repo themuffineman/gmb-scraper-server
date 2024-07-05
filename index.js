@@ -56,7 +56,6 @@ function closeClientConnection(id) {
     }
 }
 
-
 // Routes 
 app.get('/scrape', async(req, res) => {
 
@@ -269,12 +268,10 @@ app.get('/scrape', async(req, res) => {
         return crawledEmails;
     }
 });
-
 app.get('/cancel-process', async (req, res) => {
     const {clientId} = req.query
     console.log('Received cancel-process request. Cleaning up...');
     closeClientConnection(clientId)
-    await browser?.close()
     res.send('Process cancellation initiated');
 });
 
