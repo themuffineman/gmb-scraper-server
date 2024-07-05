@@ -36,22 +36,6 @@ wss.on('connection', ws => {
     });
 });
 
-// Function to launch Puppeteer
-async function launchPuppeteer() {
-    try {
-        browser = await puppeteer.launch();
-        console.log('Puppeteer Up and Running');
-    } catch (error) {
-        console.error('Error launching Puppeteer:', error);
-        throw error; // Re-throw the error to handle it elsewhere if needed
-    }
-}
-
-// Launch Puppeteer when server starts
-launchPuppeteer().catch(error => {
-    console.error('Error launching Puppeteer:', error);
-});
-
 // Broadcast function for WebSocket
 function broadcast(id, data, type) {
     const client = clients.get(id);
@@ -78,7 +62,8 @@ app.get('/scrape', async(req, res) => {
 
     const {service, location, pageNumber, clientId} = req.query
     try {
-
+        browser = await puppeteer.launch();
+        console.log('Puppeteer Up and Running');
         if (service && location && pageNumber){
             console.log('The Scraping Queries:', service,',', location, ',', pageNumber, ' id:', clientId)
             const intPageNumber = parseInt(pageNumber)
@@ -285,11 +270,11 @@ app.get('/scrape', async(req, res) => {
     }
 });
 
-app.get('/cancel-process', (req, res) => {
+app.get('/cancel-process', async (req, res) => {
     const {clientId} = req.query
     console.log('Received cancel-process request. Cleaning up...');
-
     closeClientConnection(clientId)
+    await browser?.close()
     res.send('Process cancellation initiated');
 });
 
