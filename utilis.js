@@ -1,10 +1,9 @@
-import axios from 'axios'
-import * as cheerio from 'cheerio'
-import emailValidator from 'deep-email-validator'
-import { config } from 'dotenv'
-import OpenAI from "openai";
-config()
-
+const axios = require('axios');
+const cheerio = require('cheerio');
+const emailValidator = require('deep-email-validator');
+const dotenv = require('dotenv');
+const OpenAI = require('openai');
+dotenv.config();
 export default class Prometheus{
     constructor(url) {
         this.url = url;
