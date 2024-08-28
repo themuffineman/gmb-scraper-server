@@ -4,7 +4,7 @@ const emailValidator = require('deep-email-validator');
 const dotenv = require('dotenv');
 const OpenAI = require('openai');
 dotenv.config();
-export default class Prometheus{
+class Prometheus{
     constructor(url) {
         this.url = url;
     }
@@ -233,3 +233,5 @@ export default class Prometheus{
         }
     }
 }
+
+module.exports = Prometheus;
