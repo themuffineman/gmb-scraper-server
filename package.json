@@ -14,6 +14,12 @@
     "express": "^4.19.2",
     "puppeteer": "^22.12.1",
     "uuid": "^10.0.0",
-    "ws": "^8.17.1"
+    "ws": "^8.17.1",
+    "axios": "^1.7.3",
+    "cheerio": "^1.0.0",
+    "deep-email-validator": "^0.1.21",
+    "dotenv": "^16.4.5",
+    "googleapis": "^142.0.0",
+    "openai": "^4.0.0"
   }
 }
