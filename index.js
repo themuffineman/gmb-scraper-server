@@ -110,7 +110,6 @@ app.get('/scrape', async(req, res) => {
                     const websiteATag = await card.$('a[aria-label="Website"]');
                     const url = websiteATag ? await (await websiteATag.getProperty('href')).jsonValue() : null;
                     const engine = new Prometheus(url)
-                    const emails = await engine.getEmails()
                     const socials = await engine.getSocialLinks()
                     const performance = await engine.getPagePeformance()
                     const ads = await engine.adsUsed()
@@ -194,6 +193,11 @@ app.get('/scrape', async(req, res) => {
                     const businessName = await card.$eval('div.rgnuSb.xYjf2e', node => node.textContent);
                     const websiteATag = await card.$('a[aria-label="Website"]');
                     const url = websiteATag ? await (await websiteATag.getProperty('href')).jsonValue() : null;
+                    const engine = new Prometheus(url)
+                    const socials = await engine.getSocialLinks()
+                    const performance = await engine.getPagePeformance()
+                    const ads = await engine.adsUsed()
+                    const techStack = await engine.techStack()
             
                     if (url) {
                         const newPage = await browser.newPage();
@@ -224,7 +228,7 @@ app.get('/scrape', async(req, res) => {
                                 tempEmails.push(...secondaryCrawledEmails);
                             }
                             
-                            broadcast(clientId, JSON.stringify({ name: businessName, url, emails: [...new Set(tempEmails)]}), 'lead');    
+                            broadcast(clientId, JSON.stringify({ name: businessName, url, emails: [...new Set(tempEmails)],performance, ads, techStack, socials }), 'lead');    
                         } catch (error) {
                             console.error(`Error navigating to ${url}: ${error}`);
                         } finally {
