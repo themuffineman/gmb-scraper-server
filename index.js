@@ -3,7 +3,7 @@ const express = require('express');
 const WebSocket = require('ws');
 const cors = require('cors');
 const { v4: uuidv4 } = require('uuid');
-const { default: Prometheus } = require('./utilis.js');
+const Prometheus = require('./utilis.js');
 
 
 const app = express();
