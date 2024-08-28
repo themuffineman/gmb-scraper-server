@@ -107,6 +107,8 @@ app.get('/scrape', async(req, res) => {
     
                 for (const card of cards) {
                     const businessName = await card.$eval('div.rgnuSb.xYjf2e', node => node.textContent);
+                    const phoneElement = await card.$('div.NwqBmc > div.I9iumb:nth-child(3) > span.hGz87c:last-child');
+                    const phone = phoneElement ? await (await phoneElement.getProperty('textContent')).jsonValue() : null;
                     const websiteATag = await card.$('a[aria-label="Website"]');
                     const url = websiteATag ? await (await websiteATag.getProperty('href')).jsonValue() : null;
                     const engine = new Prometheus(url)
@@ -144,7 +146,7 @@ app.get('/scrape', async(req, res) => {
                                 tempEmails.push(...secondaryCrawledEmails);
                             }
                             
-                            broadcast(clientId, JSON.stringify({ name: businessName, url, emails: [...new Set(tempEmails)], performance, ads, techStack, socials}), 'lead');
+                            broadcast(clientId, JSON.stringify({ name: businessName, phone, url, emails: [...new Set(tempEmails)], performance, ads, techStack, socials}), 'lead');
         
                         } catch (error) {
                             console.error(`Error navigating to ${url}: ${error}`);
@@ -191,6 +193,8 @@ app.get('/scrape', async(req, res) => {
             
                 for (const card of cards) {
                     const businessName = await card.$eval('div.rgnuSb.xYjf2e', node => node.textContent);
+                    const phoneElement = await card.$('div.NwqBmc > div.I9iumb:nth-child(3) > span.hGz87c:last-child');
+                    const phone = phoneElement ? await (await phoneElement.getProperty('textContent')).jsonValue() : null;
                     const websiteATag = await card.$('a[aria-label="Website"]');
                     const url = websiteATag ? await (await websiteATag.getProperty('href')).jsonValue() : null;
                     const engine = new Prometheus(url)
@@ -228,7 +232,7 @@ app.get('/scrape', async(req, res) => {
                                 tempEmails.push(...secondaryCrawledEmails);
                             }
                             
-                            broadcast(clientId, JSON.stringify({ name: businessName, url, emails: [...new Set(tempEmails)],performance, ads, techStack, socials }), 'lead');    
+                            broadcast(clientId, JSON.stringify({ name: businessName, phone, url, emails: [...new Set(tempEmails)],performance, ads, techStack, socials }), 'lead');    
                         } catch (error) {
                             console.error(`Error navigating to ${url}: ${error}`);
                         } finally {
